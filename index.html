@@ -60,10 +60,9 @@ body.dark .toggle-circle{margin-left:calc(100% - 28px);}
 <textarea id="details" placeholder="تفاصيل الطلب"></textarea>
 <input id="price" type="number" min="10" placeholder="السعر (10 جنيه على الأقل)">
 <select id="typeClient">
-<option value="عميل">عميل</option>
-<option value="متجر">متجر</option>
-<option value="مطعم">مطعم</option>
-<option value="وصلني">وصلني</option>
+<option value="موتوسيكل">موتوسيكل</option>
+<option value="عربية">عربية</option>
+<option value="توك توك">توك توك</option>
 </select>
 <select id="selectDriver"><option value="">اختر السواق</option></select>
 <button id="sendBtn" onclick="sendOrder()">إرسال الطلب</button>
@@ -110,19 +109,15 @@ let drivers = [];
 let orders = [];
 let lang='AR';
 
-// ===== تحميل البيانات من LocalStorage عند فتح الموقع =====
 window.onload = function(){
   const savedDrivers = localStorage.getItem('drivers');
   const savedOrders = localStorage.getItem('orders');
-
   if(savedDrivers) drivers = JSON.parse(savedDrivers);
   if(savedOrders) orders = JSON.parse(savedOrders);
-
   renderDriversSelect();
   renderAll();
 };
 
-// ===== التنقل بين الصفحات =====
 function showPage(id){
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -132,13 +127,11 @@ function showPage(id){
   if(id === 'adminPage') { renderAll(); renderDriversSelect(); }
 }
 
-// ===== تغيير الثيم =====
 function toggleTheme(){
   document.body.classList.toggle('dark');
   document.querySelector('.toggle-circle').textContent=document.body.classList.contains('dark')?'🌙':'🌞';
 }
 
-// ===== تغيير اللغة =====
 function toggleLang(){ 
   lang=(lang==='AR')?'ENG':'AR'; 
   document.querySelector('.toggle-circle-lang').textContent=lang; 
@@ -152,77 +145,63 @@ function updateText(){
     document.querySelector('nav button:nth-child(1)').textContent='طلب توصيل';
     document.querySelector('nav button:nth-child(2)').textContent='السواق';
     document.querySelector('nav button:nth-child(3)').textContent='Admin';
-    document.getElementById('orderTitle').textContent='طلب توصيل';
-    document.getElementById('cname').placeholder='الاسم الثلاثي';
-    document.getElementById('cphone').placeholder='رقم الهاتف (11 رقم)';
-    document.getElementById('clocation').placeholder='الموقع';
-    document.getElementById('details').placeholder='تفاصيل الطلب';
-    document.getElementById('price').placeholder='السعر (10 جنيه على الأقل)';
-    document.getElementById('sendBtn').textContent='إرسال الطلب';
-    document.getElementById('driverTitle').textContent='دخول السواق';
   } else {
     document.querySelector('header h1').textContent='Wassaly - Delivery';
     document.querySelector('header p').textContent='Fast & Safe Delivery Service';
     document.querySelector('nav button:nth-child(1)').textContent='Place Order';
     document.querySelector('nav button:nth-child(2)').textContent='Driver';
     document.querySelector('nav button:nth-child(3)').textContent='Admin';
-    document.getElementById('orderTitle').textContent='Place Order';
-    document.getElementById('cname').placeholder='Full Name';
-    document.getElementById('cphone').placeholder='Phone Number (11 digits)';
-    document.getElementById('clocation').placeholder='Location';
-    document.getElementById('details').placeholder='Order Details';
-    document.getElementById('price').placeholder='Price (min 10)';
-    document.getElementById('sendBtn').textContent='Send Order';
-    document.getElementById('driverTitle').textContent='Driver Login';
   }
 }
 
-// ===== Help toggle =====
 function toggleHelp(){
   const helpOptions=document.getElementById('helpOptions');
   helpOptions.style.display = helpOptions.style.display==='block'?'none':'block';
 }
 
-// ===== Driver Login =====
 function enterDriver(){
   const name = document.getElementById('driverName').value.trim();
   const phone = document.getElementById('driverPhone').value.trim();
-
   if(name.length < 3 || phone.length !== 11){
     alert(lang==='AR'?'يرجى إدخال بيانات صحيحة':'Please enter valid data');
     return;
   }
-
   let driver = drivers.find(d => d.phone === phone);
   if(!driver){
     driver = { name, phone, orders: [] };
     drivers.push(driver);
     localStorage.setItem('drivers', JSON.stringify(drivers));
   }
-
   currentDriver = driver;
   alert(lang==='AR'?'تم تسجيل الدخول بنجاح':'Logged in successfully');
   renderDriver();
 }
 
-// ===== Render Driver Orders =====
 function renderDriver(){
   const container = document.getElementById('driverOrders');
   container.innerHTML='';
   if(!currentDriver) return;
-
   const driverOrders = orders.filter(o => o.driver===currentDriver.phone);
   driverOrders.forEach((o,i)=>{
     const div=document.createElement('div');
     div.className='order';
-    div.innerHTML=`<b>${lang==='AR'?'طلب':'Order'}:</b> ${o.details}<br><b>${lang==='AR'?'السعر':'Price'}:</b> ${o.price} <b>ج</b><br>
+    let ratingHTML='';
+    if(o.status==='done'){
+      const ratingVal = o.rating || '';
+      ratingHTML=`<br><label>${lang==='AR'?'تقييم الخدمة':'Service Rating'}:</label>
+      <input type="number" min="1" max="5" value="${ratingVal}" onchange="rateOrder(${i},this.value)">`;
+    }
+    div.innerHTML=`<b>${lang==='AR'?'طلب':'Order'}:</b> ${o.details}<br>
+    <b>${lang==='AR'?'السعر':'Price'}:</b> ${o.price} ج<br>
+    <b>${lang==='AR'?'نوع المركبة':'Vehicle Type'}:</b> ${o.type}<br>
     <b>${lang==='AR'?'الحالة':'Status'}:</b> <span class="status-${o.status}">${o.status}</span><br>
-    <button onclick="updateStatus(${i})">${lang==='AR'?'تغيير الحالة':'Change Status'}</button>`;
+    <button onclick="updateStatus(${i})">${lang==='AR'?'تغيير الحالة':'Change Status'}</button>
+    <button onclick="sendWhatsApp(${i})">${lang==='AR'?'إرسال واتساب للسواق':'Send WhatsApp to Driver'}</button>
+    ${ratingHTML}`;
     container.appendChild(div);
   });
 }
 
-// ===== Update Status =====
 function updateStatus(index){
   const statuses = ['new','run','done'];
   let current = orders[index].status;
@@ -233,7 +212,11 @@ function updateStatus(index){
   renderAll();
 }
 
-// ===== Render Drivers Select =====
+function rateOrder(index,value){
+  orders[index].rating = value;
+  localStorage.setItem('orders', JSON.stringify(orders));
+}
+
 function renderDriversSelect(){
   const select = document.getElementById('selectDriver');
   select.innerHTML='<option value="">اختر السواق</option>';
@@ -244,7 +227,6 @@ function renderDriversSelect(){
     select.appendChild(opt);
   });
 
-  // عرض السواقين في Admin
   const allDriversDiv = document.getElementById('allDrivers');
   if(allDriversDiv){
     allDriversDiv.innerHTML='';
@@ -257,13 +239,13 @@ function renderDriversSelect(){
   }
 }
 
-// ===== Send Order =====
 function sendOrder(){
   const cname=document.getElementById('cname').value.trim();
   const cphone=document.getElementById('cphone').value.trim();
   const clocation=document.getElementById('clocation').value.trim();
   const details=document.getElementById('details').value.trim();
   const price=document.getElementById('price').value;
+  const type=document.getElementById('typeClient').value;
   const driver=document.getElementById('selectDriver').value;
 
   if(!cname||!cphone||!clocation||!details||price<10||!driver){
@@ -271,42 +253,47 @@ function sendOrder(){
     return;
   }
 
-  const order = { cname,cphone,clocation,details,price,driver,status:'new' };
+  const order = { cname,cphone,clocation,details,price,driver,type,status:'new',rating:null };
   orders.push(order);
   localStorage.setItem('orders', JSON.stringify(orders));
 
-  // فتح واتساب للسواق
-  const selectedDriver = drivers.find(d => d.phone===driver);
-  if(selectedDriver){
-    const msg = `مرحباً ${selectedDriver.name}, لديك طلب جديد:\nالعميل: ${cname}\nالهاتف: ${cphone}\nالموقع: ${clocation}\nالتفاصيل: ${details}\nالسعر: ${price} ج`;
-    const url = `https://wa.me/${selectedDriver.phone}?text=${encodeURIComponent(msg)}`;
-    window.open(url,'_blank');
-  }
+  sendWhatsApp(orders.length-1);
 
-  // إعادة تعيين الحقول
   document.getElementById('cname').value='';
   document.getElementById('cphone').value='';
   document.getElementById('clocation').value='';
   document.getElementById('details').value='';
   document.getElementById('price').value='';
   document.getElementById('selectDriver').value='';
-
   renderDriver();
   renderAll();
   renderDriversSelect();
 }
 
-// ===== Render All Orders (Admin) =====
+function sendWhatsApp(index){
+  const o = orders[index];
+  const selectedDriver = drivers.find(d => d.phone===o.driver);
+  if(selectedDriver){
+    const msg = `مرحبا ${selectedDriver.name}!\nلديك طلب جديد على وصلني 🚀\n\n👤 اسم العميل: ${o.cname}\n📞 رقم العميل: ${o.cphone}\n📝 تفاصيل الطلب: ${o.details}\n🚗 نوع المركبة: ${o.type}\n💰 السعر: ${o.price} جنيه`;
+    const url = `https://wa.me/${selectedDriver.phone}?text=${encodeURIComponent(msg)}`;
+    window.open(url,'_blank');
+  }
+}
+
 function renderAll(){
   const container = document.getElementById('allOrders');
   container.innerHTML='';
   orders.forEach((o,i)=>{
     const div=document.createElement('div');
     div.className='order';
+    let ratingHTML='';
+    if(o.rating) ratingHTML=`<br><b>${lang==='AR'?'التقييم':'Rating'}:</b> ${o.rating}/5`;
     div.innerHTML=`<b>${lang==='AR'?'العميل':'Client'}:</b> ${o.cname} - <b>${lang==='AR'?'السواق':'Driver'}:</b> ${o.driver}<br>
     <b>${lang==='AR'?'التفاصيل':'Details'}:</b> ${o.details} <br> 
     <b>${lang==='AR'?'السعر':'Price'}:</b> ${o.price} ج <br>
-    <b>${lang==='AR'?'الحالة':'Status'}:</b> <span class="status-${o.status}">${o.status}</span>`;
+    <b>${lang==='AR'?'نوع المركبة':'Vehicle Type'}:</b> ${o.type} <br>
+    <b>${lang==='AR'?'الحالة':'Status'}:</b> <span class="status-${o.status}">${o.status}</span>
+    ${ratingHTML}`;
     container.appendChild(div);
   });
 }
